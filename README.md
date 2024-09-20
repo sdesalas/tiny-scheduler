@@ -4,7 +4,7 @@ A lightweight and flexible task scheduling library for Arduino, allowing users t
 
 This Arduino scheduling library offers a simple yet powerful way to manage timed tasks. Whether you need to run a task after a delay, repeat an action periodically, or execute a function multiple times with custom intervals, this library provides an easy-to-use interface. Built with flexibility in mind, the library supports passing functions, lambdas, or callable objects, giving you full control over scheduling behaviors.
 
-Key features include:
+## Key features include
 
 **Timeouts**: Schedule tasks to run after a specified delay.
 
@@ -15,8 +15,6 @@ Key features include:
 **Flexible API**: Use any callable (functions, lambdas, functors) as tasks.
 
 **Low overhead**: Optimized for minimal memory usage, perfect for resource-constrained Arduino boards
-
----
 
 ## Alternative Installation
 
