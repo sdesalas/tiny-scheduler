@@ -38,7 +38,7 @@ public:
   template<typename Callable>
   Scheduler& timeout(unsigned long delta, Callable callable) {
     unsigned long when = this->timeProvider() + delta;
-    this->addNode(new BaseNode<Callable>(delta, callable));
+    this->addNode(new BaseNode<Callable>(when, callable));
     return *this;
   }
 
