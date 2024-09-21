@@ -16,23 +16,27 @@ public:
 };
 
 typedef unsigned long (*TimeProvider)();
+typedef void (*Delay)(unsigned long);
+
+
+void usDelay(unsigned long us);
 
 
 class Scheduler {
 public:
-  Scheduler(TimeProvider timeProvider);
+  Scheduler(TimeProvider timeProvider, Delay delay);
   static Scheduler millis() {
-    return Scheduler(::millis);
+    return Scheduler(::millis, ::delay);
   }
   static Scheduler micros() {
-    return Scheduler(::micros);
+    return Scheduler(::micros, usDelay);
   }
   virtual ~Scheduler();
-  unsigned long tick(unsigned long delta);
   unsigned long tick();
   void loop();
   bool isEmpty() const;
   unsigned int count() const;
+  void debug(Stream& stream) const;
 
 
   template<typename Callable>
@@ -46,14 +50,14 @@ public:
   template<typename Callable>
   Scheduler& every(unsigned long interval, Callable callable) {
     unsigned long when = this->timeProvider() + interval;
-    this->addNode(new PeriodicNode<Callable>(*this, when, interval, callable));
+    this->addNode(new PeriodicNode<Callable>(when, interval, callable));
     return *this;
   }
 
   template<typename Callable>
   Scheduler& every(unsigned long firstInterval, unsigned long interval, Callable callable) {
     unsigned long when = this->timeProvider() + firstInterval;
-    this->addNode(new PeriodicNode<Callable>(*this, when, interval, callable));
+    this->addNode(new PeriodicNode<Callable>(when, interval, callable));
     return *this;
   }
 
@@ -62,7 +66,7 @@ public:
   Scheduler& repeat(unsigned int times, unsigned long interval, Callable callable) {
     if(times == 0) return *this;
     unsigned long when = this->timeProvider() + interval;
-    this->addNode(new RepeatableNode<Callable>(*this, when, times, interval, callable));
+    this->addNode(new RepeatableNode<Callable>(when, times, interval, callable));
     return *this;
   }
 
@@ -71,7 +75,7 @@ public:
   Scheduler& repeat(unsigned int times, unsigned long firstInterval,  unsigned long interval, Callable callable) {
     if(times == 0) return *this;
     unsigned long when = this->timeProvider() + firstInterval;
-    this->addNode(new RepeatableNode<Callable>(*this, when, times, interval, callable));
+    this->addNode(new RepeatableNode<Callable>(when, times, interval, callable));
     return *this;
   }
 
@@ -80,7 +84,10 @@ public:
     public:
       Node();
       Node(unsigned long when);
-      virtual void run() {};
+      /**
+       * returns true if it is done
+       */
+      virtual bool run() { return true;};
       virtual ~Node() {};
 
       bool isAfter(const Node& node) const;
@@ -91,11 +98,12 @@ public:
       unsigned long leftTime(unsigned long delta) const;
 
       void setNext(Node* next);
-      void setPrev(Node* prev);
       void remove();
+
+
+      virtual void debug(Stream& stream) const;
     private:
       Node* next;
-      Node* prev;
       unsigned long when;
   };
 
@@ -106,8 +114,9 @@ public:
       Callable callable;
     public:
 
-      void run() {
+      bool run() {
         this->callable();
+        return true;
       }
 
       BaseNode(unsigned long when, Callable callable) : Node(when), callable(callable) {
@@ -118,39 +127,58 @@ public:
   template<typename Callable>
   class PeriodicNode: public Node {
     protected:
-      Scheduler& scheduler;
       Callable callable;
       unsigned long interval;
     public:
 
-      void run() {
+      bool run() {
         this->callable();
-        this->scheduler.every(this->interval, this->callable);
+        this->when += this->interval;
+        return false;
       }
 
-      PeriodicNode(Scheduler& scheduler, unsigned long when, unsigned long interval, Callable callable) : Node(when),  scheduler(scheduler), callable(callable), interval(interval) {
+      PeriodicNode(unsigned long when, unsigned long interval, Callable callable) : Node(when), callable(callable), interval(interval) {
 
+      }
+
+      void debug(Stream& stream) const {
+          stream.print("RepeatableNode {");
+          stream.print(".when=");
+          stream.print(this->when);
+          stream.print(" .interval=");
+          stream.print(this->interval);
+          stream.print("}");
       }
   };
 
   template<typename Callable>
   class RepeatableNode: public Node {
     protected:
-      Scheduler& scheduler;
       Callable callable;
       unsigned int times;
       unsigned long interval;
     public:
 
-      void run() {
+      bool run() {
+        this->times -= 1;
         this->callable();
-        if(this->times > 1) {
-          this->scheduler.repeat(this->times - 1, this->interval, this->callable);
-        }
+        this->when += this->interval;
+        return this->times == 0;
       }
 
-      RepeatableNode(Scheduler& scheduler, unsigned long when, unsigned int times, unsigned long interval, Callable callable) : Node(when),  scheduler(scheduler), times(times), callable(callable), interval(interval) {
+      RepeatableNode(unsigned long when, unsigned int times, unsigned long interval, Callable callable) : Node(when),  times(times), callable(callable), interval(interval) {
 
+      }
+
+      void debug(Stream& stream) const {
+          stream.print("RepeatableNode {");
+          stream.print(".when=");
+          stream.print(this->when);
+          stream.print(" .times=");
+          stream.print(this->times);
+          stream.print(" .interval=");
+          stream.print(this->interval);
+          stream.print("}");
       }
   };
 
@@ -159,6 +187,7 @@ public:
 private:
   Node head;
   TimeProvider timeProvider;
+  Delay delay;
 
 };
 

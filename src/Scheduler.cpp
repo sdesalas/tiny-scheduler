@@ -3,16 +3,17 @@
 namespace scheduler {
 
 
+void usDelay(unsigned long us) {
+  delayMicroseconds(us);
+}
+
+
 Scheduler::Node::Node(): when(0) {
   this->next = NULL;
-  this->prev = NULL;
 } 
-
-
 
 Scheduler::Node::Node(unsigned long when): when(when) {
   this->next = NULL;
-  this->prev = NULL;
 } 
 
 bool Scheduler::Node::isAfter(const Scheduler::Node& other) const {
@@ -41,45 +42,30 @@ bool Scheduler::Node::hasNext() const {
   return this->next != NULL;
 }
 
-
 void Scheduler::Node::setNext(Scheduler::Node* next) {
   this->next = next;
-  if(next != NULL) {
-    next->prev = this;
-  }
+} 
+
+void Scheduler::Node::debug(Stream& stream) const {
+  stream.print("Node {");
+  stream.print(".when=");
+  stream.print(this->when);
+  stream.print("}");
 } 
 
 
-void Scheduler::Node::setPrev(Scheduler::Node* prev) {
-  this->prev = prev;
-  if(prev != NULL) {
-    prev->next = this;
-  }
-} 
-
-
-void Scheduler::Node::remove() {
-  auto next = this->next;
-  auto prev = this->prev;
-  if(next != NULL) {
-    next->prev = prev;
-  }
-  if(prev != NULL) {
-    prev->next = next;
-  }
-}
 
 Scheduler::Node* Scheduler::addNode(Scheduler::Node* newNode) {
   Scheduler::Node* node = &this->head;
-  while(node->hasNext() && newNode->isAfter(*node)) {
+  while(node->hasNext() && node->next->isBefore(*newNode)) {
     node = node->next;
   }
   newNode->setNext(node->next);
-  newNode->setPrev(node);
+  node->setNext(newNode);
   return newNode;
 }
 
-Scheduler::Scheduler(TimeProvider timeProvider) : timeProvider(timeProvider) {
+Scheduler::Scheduler(TimeProvider timeProvider, Delay delay) : timeProvider(timeProvider), delay(delay) {
 
 }
 
@@ -92,30 +78,39 @@ Scheduler::~Scheduler() {
   }
 }
 
+void Scheduler::debug(Stream& stream) const {
+  stream.println("Scheduler::debug");
+  stream.println("Scheduler Tasks:");
+  Scheduler::Node* node = this->head.next;
+  while (node != NULL) {
+    stream.print("\t");
+    node->debug(stream);
+    stream.println();
+    node = node->next;
+  }
+  stream.println("-----");
+}
+
 bool Scheduler::isEmpty() const {
   return !this->head.hasNext();
 }
 
+
 unsigned long Scheduler::tick() {
-  if(this->isEmpty()) {
-    return 0;
-  }
-  unsigned long delta = this->timeProvider();
-  return this->tick(delta);
-}
-
-
-unsigned long Scheduler::tick(unsigned long delta) {
-  Scheduler::Node* node = this->head.next;
-  while(!node->isAfter(delta)) {
-    auto next = node->next;
-    node->run();
-    auto done = node;
-    done->remove();
-    delete done;
-    node = next;
-    if(node == NULL)  {
-      break;
+  while (this->head.hasNext()) {
+    Node* node = this->head.next;
+    unsigned long delta = this->timeProvider();
+    if (node->isAfter(delta)) {
+      unsigned long leftTime = node->leftTime(delta);
+      return leftTime;
+    }
+    this->head.setNext(node->next);
+    bool deleteNode = node->run();
+    if (deleteNode) {
+      delete node;
+    }
+    else {
+      this->addNode(node);
     }
   }
   return 0;
@@ -139,7 +134,7 @@ void Scheduler::loop() {
   while(!this->isEmpty()) {
     const unsigned long wait = this->tick();
     if(wait != 0) {
-      delayMicroseconds(wait);
+      this->delay(wait);
     }
   }
 }

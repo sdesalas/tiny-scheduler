@@ -1,4 +1,5 @@
 #include "scheduler.h"
+#include "Arduino.h"
 #include <cmath>
 #include <gtest/gtest.h>
 #include <iostream>
@@ -7,29 +8,27 @@
 
 using namespace scheduler;
 
-int counter = 1;
+unsigned long timer = 0;
 
-unsigned long zero() {
-  return 0;
-}
-
-void add_and_print() {
-  std::cout << "add_and_print" << std::endl;
-  std::cout << ++counter << std::endl;
+unsigned long getTimer() {
+  return timer;
 }
 
 TEST(Scheduler, Init) {
-  Scheduler scheduler(zero);
+  timer = 0;
+  Scheduler scheduler(getTimer, delay);
 }
 
 TEST(Scheduler, AddNode) {
-  Scheduler scheduler(zero);
+  timer = 0;
+  Scheduler scheduler(getTimer, delay);
   scheduler.addNode(new Scheduler::Node());
   ASSERT_EQ(scheduler.count(), 1);
 }
 
 TEST(Scheduler, AddMultipleNode) {
-  Scheduler scheduler(zero);
+  timer = 0;
+  Scheduler scheduler(getTimer, delay);
   scheduler.addNode(new Scheduler::Node());
   scheduler.addNode(new Scheduler::Node());
   scheduler.addNode(new Scheduler::Node());
@@ -39,35 +38,46 @@ TEST(Scheduler, AddMultipleNode) {
 
 
 TEST(Scheduler, RemoveWithTick) {
-  Scheduler scheduler(zero);
+  timer = 0;
+  Scheduler scheduler(getTimer, delay);
   scheduler.addNode(new Scheduler::Node(1));
   scheduler.addNode(new Scheduler::Node(2));
   scheduler.addNode(new Scheduler::Node(3));
   scheduler.addNode(new Scheduler::Node(4));
+  timer = 0;
+  scheduler.tick();
   ASSERT_EQ(scheduler.count(), 4);
-  scheduler.tick(1);
+  timer = 1;
+  scheduler.tick();
   ASSERT_EQ(scheduler.count(), 3);
-  scheduler.tick(2);
+  timer = 2;
+  scheduler.tick();
   ASSERT_EQ(scheduler.count(), 2);
-  scheduler.tick(3);
+  timer = 3;
+  scheduler.tick();
   ASSERT_EQ(scheduler.count(), 1);
-  scheduler.tick(4);
+  timer = 4;
+  scheduler.tick();
   ASSERT_EQ(scheduler.count(), 0);
 }
 
 TEST(Scheduler, RemoveAllWithTick) {
-  Scheduler scheduler(zero);
+  timer = 0;
+  Scheduler scheduler(getTimer, delay);
   scheduler.addNode(new Scheduler::Node(1));
   scheduler.addNode(new Scheduler::Node(2));
   scheduler.addNode(new Scheduler::Node(3));
   scheduler.addNode(new Scheduler::Node(4));
+  timer = 0;
   ASSERT_EQ(scheduler.count(), 4);
-  scheduler.tick(4);
+  timer = 4;
+  scheduler.tick();
   ASSERT_EQ(scheduler.count(), 0);
 }
 
 
 TEST(Scheduler, RemoveAllWithLoop) {
+  timer = 0;
   Scheduler scheduler = Scheduler::micros();
   scheduler.addNode(new Scheduler::Node(1));
   scheduler.addNode(new Scheduler::Node(2));
@@ -80,35 +90,34 @@ TEST(Scheduler, RemoveAllWithLoop) {
 
 
 TEST(Scheduler, Timeout) {
+  timer = 0;
   bool done;
   bool* doneAddress = &done;
-  Scheduler scheduler(zero);
+  Scheduler scheduler(getTimer, delay);
   scheduler.timeout(5, [doneAddress](){
     *doneAddress = true;
   });
-  scheduler.tick(4);
+  timer = 4;
+  scheduler.tick();
   ASSERT_FALSE(done);
-  scheduler.tick(5);
+  timer = 5;
+  scheduler.tick();
   ASSERT_TRUE(done);
 }
 
 
-unsigned long timer = 0;
-
-unsigned long getTimer() {
-  return timer;
-}
 
 TEST(Scheduler, Every) {
+  timer = 0;
   int counter = 0;
   int* counterAddress = &counter;
-  Scheduler scheduler(getTimer);
+  Scheduler scheduler(getTimer, delay);
   scheduler.every(2, [counterAddress](){
     *counterAddress += 1;
   });
   ASSERT_EQ(scheduler.count(), 1);
   for(timer=0;timer<10;timer++) {
-    scheduler.tick(timer);
+    scheduler.tick();
     ASSERT_EQ(counter, timer / 2);
   }
   ASSERT_EQ(scheduler.count(), 1);
@@ -116,16 +125,17 @@ TEST(Scheduler, Every) {
 
 
 TEST(Scheduler, EveryWithFirstInterval) {
+  timer = 0;
   int counter = -1;
   int* counterAddress = &counter;
   timer = 0;
-  Scheduler scheduler(getTimer);
+  Scheduler scheduler(getTimer, delay);
   scheduler.every(0, 1, [counterAddress](){
     *counterAddress += 1;
   });
   ASSERT_EQ(scheduler.count(), 1);
   for(timer=0;timer<10;timer++) {
-    scheduler.tick(timer);
+    scheduler.tick();
     ASSERT_EQ(counter, timer);
   }
   ASSERT_EQ(scheduler.count(), 1);
@@ -133,6 +143,7 @@ TEST(Scheduler, EveryWithFirstInterval) {
 
 
 TEST(Scheduler, RepeatAndLoop) {
+  timer = 0;
   int counter = 0;
   int* counterAddress = &counter;
   Scheduler scheduler = Scheduler::micros();
@@ -147,17 +158,18 @@ TEST(Scheduler, RepeatAndLoop) {
 
 
 TEST(Scheduler, RepeatWithFirstInterval) {
+  timer = 0;
   int counter = 0;
   int* counterAddress = &counter;
   timer = 0;
-  Scheduler scheduler(getTimer);
+  Scheduler scheduler(getTimer, delay);
   scheduler.repeat(10, 0, 1, [counterAddress](){
     *counterAddress += 1;
   });
   ASSERT_EQ(scheduler.count(), 1);
   for(timer=0;timer<10;timer++) {
     ASSERT_EQ(counter, timer);
-    scheduler.tick(timer);
+    scheduler.tick();
   }
   ASSERT_EQ(scheduler.count(), 0);
   ASSERT_EQ(counter, 10);
@@ -168,26 +180,6 @@ TEST(Scheduler_Node, Init) {
   Scheduler::Node node;
 }
 
-/*
-TEST(Scheduler, CancelAll) {
-  counter = 0;
-  auto& scheduler = Scheduler::main();
-  scheduler.timeout(1, [&scheduler]() { scheduler.cancelAll(); });
-  scheduler.timeout(1, add_and_print);
-  scheduler.timeout(2, add_and_print);
-  scheduler.timeout(3, add_and_print);
-  EXPECT_EQ(counter, 0);
-  scheduler.loop();
-  EXPECT_EQ(counter, 0);
-}
-
-TEST(Schedule, Every) {
-  Scheduler::main().every(1, []() { Scheduler::main().debug(Serial); });
-  for (int i = 0; i < 10; i += 1) {
-    delay(Scheduler::main().tick());
-  }
-}
-*/
 
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);

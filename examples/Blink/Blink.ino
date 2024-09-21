@@ -18,7 +18,9 @@ void setup() {
   digitalWrite(LED_PIN, LED_VALUE);
   msScheduler
     .repeat(5, 250, 500, toggleLed)
-    .repeat(5, 0, 500, toggleLed).every(3000, 1000, toggleLed);
+    .repeat(5, 0, 500, toggleLed)
+    .every(3000, 1000, toggleLed);
+  msScheduler.debug(Serial);
 }
 
 void loop() {
