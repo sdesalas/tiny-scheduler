@@ -14,6 +14,10 @@ unsigned long getTimer() {
   return timer;
 }
 
+void noop() {
+
+}
+
 TEST(Scheduler, Init) {
   timer = 0;
   Scheduler scheduler(getTimer, delay);
@@ -180,6 +184,141 @@ TEST(Scheduler_Node, Init) {
   Scheduler::Node node;
 }
 
+TEST(Scheduler, ClearOne) {
+  Scheduler scheduler(getTimer, delay);
+  scheduler.timeout(1000, noop);
+  ASSERT_EQ(scheduler.count(), 1);
+  scheduler.clear();
+  ASSERT_EQ(scheduler.count(), 0);
+}
+
+TEST(Scheduler, ClearMany) {
+  Scheduler scheduler(getTimer, delay);
+  scheduler.timeout(1000, noop);
+  scheduler.repeat(10, 1000, noop);
+  scheduler.every(1000, noop);
+  ASSERT_EQ(scheduler.count(), 3);
+  scheduler.clear();
+  ASSERT_EQ(scheduler.count(), 0);
+}
+
+TEST(Scheduler_Group, Timeout) {
+  timer = 0;
+  bool done;
+  bool* doneAddress = &done;
+  Scheduler scheduler(getTimer, delay);
+  scheduler.group().timeout(5, [doneAddress](){
+    *doneAddress = true;
+  });
+  timer = 4;
+  scheduler.tick();
+  ASSERT_FALSE(done);
+  timer = 5;
+  scheduler.tick();
+  ASSERT_TRUE(done);
+}
+
+
+
+TEST(Scheduler_Group, Every) {
+  timer = 0;
+  int counter = 0;
+  int* counterAddress = &counter;
+  Scheduler scheduler(getTimer, delay);
+  scheduler.group().every(2, [counterAddress](){
+    *counterAddress += 1;
+  });
+  ASSERT_EQ(scheduler.count(), 1);
+  for(timer=0;timer<10;timer++) {
+    scheduler.tick();
+    ASSERT_EQ(counter, timer / 2);
+  }
+  ASSERT_EQ(scheduler.count(), 1);
+}
+
+TEST(Scheduler_Group, EveryWithFirstInterval) {
+  timer = 0;
+  int counter = -1;
+  int* counterAddress = &counter;
+  timer = 0;
+  Scheduler scheduler(getTimer, delay);
+  scheduler.group().every(0, 1, [counterAddress](){
+    *counterAddress += 1;
+  });
+  ASSERT_EQ(scheduler.count(), 1);
+  for(timer=0;timer<10;timer++) {
+    scheduler.tick();
+    ASSERT_EQ(counter, timer);
+  }
+  ASSERT_EQ(scheduler.count(), 1);
+}
+
+
+TEST(Scheduler_Group, RepeatAndLoop) {
+  timer = 0;
+  int counter = 0;
+  int* counterAddress = &counter;
+  Scheduler scheduler = Scheduler::micros();
+  scheduler.group().repeat(10, 1, [counterAddress](){
+    *counterAddress += 1;
+  });
+  ASSERT_EQ(scheduler.count(), 1);
+  scheduler.loop();
+  ASSERT_EQ(scheduler.count(), 0);
+  ASSERT_EQ(counter, 10);
+}
+
+
+TEST(Scheduler_Group, RepeatWithFirstInterval) {
+  timer = 0;
+  int counter = 0;
+  int* counterAddress = &counter;
+  timer = 0;
+  Scheduler scheduler(getTimer, delay);
+  scheduler.group().repeat(10, 0, 1, [counterAddress](){
+    *counterAddress += 1;
+  });
+  ASSERT_EQ(scheduler.count(), 1);
+  for(timer=0;timer<10;timer++) {
+    ASSERT_EQ(counter, timer);
+    scheduler.tick();
+  }
+  ASSERT_EQ(scheduler.count(), 0);
+  ASSERT_EQ(counter, 10);
+}
+
+TEST(Scheduler_Group, abort) {
+  timer = 0;
+  int counter = 0;
+  int* counterAddress = &counter;
+  timer = 0;
+  Scheduler scheduler(getTimer, delay);
+  scheduler.timeout(1, noop);
+  Scheduler::Group group = scheduler.group()
+    .timeout(1, noop);
+  ASSERT_EQ(scheduler.count(), 2);
+  group.abort();
+  ASSERT_EQ(scheduler.count(), 1);
+}
+
+
+TEST(Scheduler_Group, multipleAbort) {
+  timer = 0;
+  int counter = 0;
+  int* counterAddress = &counter;
+  timer = 0;
+  Scheduler scheduler(getTimer, delay);
+  scheduler.timeout(1, noop);
+  Scheduler::Group group1 = scheduler.group()
+    .timeout(1, noop);
+  Scheduler::Group group2 = scheduler.group()
+    .timeout(1, noop);
+  ASSERT_EQ(scheduler.count(), 3);
+  group1.abort();
+  ASSERT_EQ(scheduler.count(), 2);
+  group2.abort();
+  ASSERT_EQ(scheduler.count(), 1);
+}
 
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);

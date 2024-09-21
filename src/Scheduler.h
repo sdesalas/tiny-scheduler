@@ -24,6 +24,9 @@ void usDelay(unsigned long us);
 
 class Scheduler {
 public:
+
+  class Group;
+
   Scheduler(TimeProvider timeProvider, Delay delay);
   static Scheduler millis() {
     return Scheduler(::millis, ::delay);
@@ -38,6 +41,8 @@ public:
   unsigned int count() const;
   void debug(Stream& stream) const;
 
+  void clear();
+  Group group();
 
   template<typename Callable>
   Scheduler& timeout(unsigned long delta, Callable callable) {
@@ -80,7 +85,6 @@ public:
   }
 
   class Node {
-    friend Scheduler;
     public:
       Node();
       Node(unsigned long when);
@@ -99,12 +103,15 @@ public:
 
       void setNext(Node* next);
       void remove();
+      Node* withGroupId(unsigned long groupId);
 
 
       virtual void debug(Stream& stream) const;
     private:
+      friend Scheduler;
       Node* next;
       unsigned long when;
+      unsigned long groupId = 0;
   };
 
 
@@ -143,11 +150,13 @@ public:
 
       void debug(Stream& stream) const {
           stream.print("RepeatableNode {");
-          stream.print(".when=");
+          stream.print(" .groupId=");
+          stream.print(this->groupId);
+          stream.print(" .when=");
           stream.print(this->when);
           stream.print(" .interval=");
           stream.print(this->interval);
-          stream.print("}");
+          stream.print(" }");
       }
   };
 
@@ -172,22 +181,84 @@ public:
 
       void debug(Stream& stream) const {
           stream.print("RepeatableNode {");
-          stream.print(".when=");
+          stream.print(" .groupId=");
+          stream.print(this->groupId);
+          stream.print(" .when=");
           stream.print(this->when);
           stream.print(" .times=");
           stream.print(this->times);
           stream.print(" .interval=");
           stream.print(this->interval);
-          stream.print("}");
+          stream.print(" }");
       }
+  };
+
+
+  class Group {
+  public:
+    void abort();
+
+    template<typename Callable>
+    Group& timeout(unsigned long delta, Callable callable) {
+      unsigned long when = this->scheduler.timeProvider() + delta;
+      this->scheduler.addNode((new BaseNode<Callable>(when, callable))->withGroupId(this->id));
+      return *this;
+    }
+
+
+    template<typename Callable>
+    Group& every(unsigned long interval, Callable callable) {
+      unsigned long when = this->scheduler.timeProvider() + interval;
+      this->scheduler.addNode((new PeriodicNode<Callable>(when, interval, callable))->withGroupId(this->id));
+      return *this;
+    }
+
+    template<typename Callable>
+    Group& every(unsigned long firstInterval, unsigned long interval, Callable callable) {
+      unsigned long when = this->scheduler.timeProvider() + firstInterval;
+      this->scheduler.addNode((new PeriodicNode<Callable>(when, interval, callable))->withGroupId(this->id));
+      return *this;
+    }
+
+
+    template<typename Callable>
+    Group& repeat(unsigned int times, unsigned long interval, Callable callable) {
+      if(times == 0) return *this;
+      unsigned long when = this->scheduler.timeProvider() + interval;
+      this->scheduler.addNode((new RepeatableNode<Callable>(when, times, interval, callable))->withGroupId(this->id));
+      return *this;
+    }
+
+
+    template<typename Callable>
+    Group& repeat(unsigned int times, unsigned long firstInterval,  unsigned long interval, Callable callable) {
+      if(times == 0) return *this;
+      unsigned long when = this->scheduler.timeProvider() + firstInterval;
+      this->scheduler.addNode((new RepeatableNode<Callable>(when, times, interval, callable))->withGroupId(this->id));
+      return *this;
+    }
+
+  private:
+    friend Scheduler;
+    Group(Scheduler& scheduler, unsigned long id);
+    unsigned long id;
+    Scheduler& scheduler;
   };
 
   Node* addNode(Node* newNode);
 
 private:
+  friend Group;
   Node head;
   TimeProvider timeProvider;
   Delay delay;
+  unsigned long nextGroupId = 1;
+
+  void clearGroup(unsigned long groupId);
+
+  unsigned long getNextGroupId() {
+    return this->nextGroupId++;
+  }
 
 };
 

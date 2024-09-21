@@ -46,11 +46,20 @@ void Scheduler::Node::setNext(Scheduler::Node* next) {
   this->next = next;
 } 
 
+
+Scheduler::Node* Scheduler::Node::withGroupId(unsigned long groupId) {
+  this->groupId = groupId;
+  return this;
+} 
+
+
 void Scheduler::Node::debug(Stream& stream) const {
   stream.print("Node {");
-  stream.print(".when=");
+  stream.print(" .when=");
   stream.print(this->when);
-  stream.print("}");
+  stream.print(" .groupId=");
+  stream.print(this->groupId);
+  stream.print(" }");
 } 
 
 
@@ -137,6 +146,46 @@ void Scheduler::loop() {
       this->delay(wait);
     }
   }
+}
+
+void Scheduler::clear() {
+  while (this->head.hasNext()) {
+    Node* node = this->head.next;
+    this->head.setNext(node->next);
+    delete node;
+  }
+}
+
+
+void Scheduler::clearGroup(unsigned long groupId) {
+  Node* prev = &this->head;
+  Node* node = this->head.next;
+  while(node != NULL) {
+    bool removeIt = node->groupId == groupId;
+    if(removeIt) {
+      prev->next = node->next;
+      delete node;
+    }
+    else{
+      prev = node;
+    }
+    node = prev->next;
+  }
+}
+
+Scheduler::Group Scheduler::group() {
+  return Group(*this, this->getNextGroupId());
+}
+
+
+
+Scheduler::Group::Group(Scheduler& scheduler, unsigned long id): scheduler(scheduler), id(id) {
+
+}
+
+
+void Scheduler::Group::abort() {
+  this->scheduler.clearGroup(this->id);
 }
 
 }
