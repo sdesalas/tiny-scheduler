@@ -34,6 +34,10 @@ all: $(OBJECTS) $(RUNS)
 
 ino: $(INOOBJ)
 
+
+%.md: $(INOSRC)
+	node ./node_modules/embedme/dist/embedme.js $@
+
 clean:
 	rm -f $(OBJECTS) $(RUNS) $(TESTS) $(INOOBJ)
 

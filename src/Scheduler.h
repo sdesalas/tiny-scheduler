@@ -196,7 +196,7 @@ public:
 
   class Group {
   public:
-    void abort();
+    void clear();
 
     template<typename Callable>
     Group& timeout(unsigned long delta, Callable callable) {

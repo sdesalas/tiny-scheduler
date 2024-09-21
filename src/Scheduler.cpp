@@ -184,7 +184,7 @@ Scheduler::Group::Group(Scheduler& scheduler, unsigned long id): scheduler(sched
 }
 
 
-void Scheduler::Group::abort() {
+void Scheduler::Group::clear() {
   this->scheduler.clearGroup(this->id);
 }
 

@@ -287,7 +287,7 @@ TEST(Scheduler_Group, RepeatWithFirstInterval) {
   ASSERT_EQ(counter, 10);
 }
 
-TEST(Scheduler_Group, abort) {
+TEST(Scheduler_Group, Clear) {
   timer = 0;
   int counter = 0;
   int* counterAddress = &counter;
@@ -297,12 +297,12 @@ TEST(Scheduler_Group, abort) {
   Scheduler::Group group = scheduler.group()
     .timeout(1, noop);
   ASSERT_EQ(scheduler.count(), 2);
-  group.abort();
+  group.clear();
   ASSERT_EQ(scheduler.count(), 1);
 }
 
 
-TEST(Scheduler_Group, multipleAbort) {
+TEST(Scheduler_Group, MultipleClear) {
   timer = 0;
   int counter = 0;
   int* counterAddress = &counter;
@@ -314,9 +314,9 @@ TEST(Scheduler_Group, multipleAbort) {
   Scheduler::Group group2 = scheduler.group()
     .timeout(1, noop);
   ASSERT_EQ(scheduler.count(), 3);
-  group1.abort();
+  group1.clear();
   ASSERT_EQ(scheduler.count(), 2);
-  group2.abort();
+  group2.clear();
   ASSERT_EQ(scheduler.count(), 1);
 }
 

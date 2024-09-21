@@ -5,3 +5,4 @@
 **.run
 **.ao
 **.gcno
+/node_modules
