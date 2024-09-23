@@ -46,23 +46,29 @@ public:
 
   template<typename Callable>
   Scheduler& timeout(unsigned long delta, Callable callable) {
-    unsigned long when = this->timeProvider() + delta;
-    this->addNode(new BaseNode<Callable>(when, callable));
+    unsigned long time =  this->timeProvider();
+    unsigned long when = time + delta;
+    bool overflow = when < time;
+    this->addNode((new BaseNode<Callable>(when, callable))->withOverflow(overflow));
     return *this;
   }
 
 
   template<typename Callable>
   Scheduler& every(unsigned long interval, Callable callable) {
-    unsigned long when = this->timeProvider() + interval;
-    this->addNode(new PeriodicNode<Callable>(when, interval, callable));
+    unsigned long time =  this->timeProvider();
+    unsigned long when = time + interval;
+    bool overflow = when < time;
+    this->addNode((new PeriodicNode<Callable>(when, interval, callable))->withOverflow(overflow));
     return *this;
   }
 
   template<typename Callable>
   Scheduler& every(unsigned long firstInterval, unsigned long interval, Callable callable) {
-    unsigned long when = this->timeProvider() + firstInterval;
-    this->addNode(new PeriodicNode<Callable>(when, interval, callable));
+    unsigned long time =  this->timeProvider();
+    unsigned long when = time + firstInterval;
+    bool overflow = when < time;
+    this->addNode((new PeriodicNode<Callable>(when, interval, callable))->withOverflow(overflow));
     return *this;
   }
 
@@ -70,8 +76,10 @@ public:
   template<typename Callable>
   Scheduler& repeat(unsigned int times, unsigned long interval, Callable callable) {
     if(times == 0) return *this;
-    unsigned long when = this->timeProvider() + interval;
-    this->addNode(new RepeatableNode<Callable>(when, times, interval, callable));
+    unsigned long time =  this->timeProvider();
+    unsigned long when = time + interval;
+    bool overflow = when < time;
+    this->addNode((new RepeatableNode<Callable>(when, times, interval, callable))->withOverflow(overflow));
     return *this;
   }
 
@@ -79,8 +87,10 @@ public:
   template<typename Callable>
   Scheduler& repeat(unsigned int times, unsigned long firstInterval,  unsigned long interval, Callable callable) {
     if(times == 0) return *this;
-    unsigned long when = this->timeProvider() + firstInterval;
-    this->addNode(new RepeatableNode<Callable>(when, times, interval, callable));
+    unsigned long time =  this->timeProvider();
+    unsigned long when = time + firstInterval;
+    bool overflow = when < time;
+    this->addNode((new RepeatableNode<Callable>(when, times, interval, callable))->withOverflow(overflow));
     return *this;
   }
 
@@ -96,20 +106,26 @@ public:
 
       bool isAfter(const Node& node) const;
       bool isAfter(unsigned long delta) const;
+      bool isAfter(bool overflow, unsigned long delta) const;
       bool isBefore(const Node& node) const;
       bool isBefore(unsigned long delta) const;
+      bool isBefore(bool overflow, unsigned long delta) const;
+      bool isOverflow() const;
       bool hasNext() const;
       unsigned long leftTime(unsigned long delta) const;
 
       void setNext(Node* next);
       void remove();
       Node* withGroupId(unsigned long groupId);
+      Node* withOverflow(bool overflow);
 
 
       virtual void debug(Stream& stream) const;
     private:
+
       friend Scheduler;
       Node* next;
+      bool overflow = false;
       unsigned long when;
       unsigned long groupId = 0;
   };
@@ -156,6 +172,8 @@ public:
           stream.print(this->when);
           stream.print(" .interval=");
           stream.print(this->interval);
+          stream.print(" .overflow=");
+          stream.print(this->overflow);
           stream.print(" }");
       }
   };
@@ -189,6 +207,8 @@ public:
           stream.print(this->times);
           stream.print(" .interval=");
           stream.print(this->interval);
+          stream.print(" .overflow=");
+          stream.print(this->overflow);
           stream.print(" }");
       }
   };
@@ -200,23 +220,29 @@ public:
 
     template<typename Callable>
     Group& timeout(unsigned long delta, Callable callable) {
-      unsigned long when = this->scheduler.timeProvider() + delta;
-      this->scheduler.addNode((new BaseNode<Callable>(when, callable))->withGroupId(this->id));
+      unsigned long time =  this->scheduler.timeProvider();
+      unsigned long when = time + delta;
+      bool overflow = when < time;
+      this->scheduler.addNode((new BaseNode<Callable>(when, callable))->withGroupId(this->id)->withOverflow(overflow));
       return *this;
     }
 
 
     template<typename Callable>
     Group& every(unsigned long interval, Callable callable) {
-      unsigned long when = this->scheduler.timeProvider() + interval;
-      this->scheduler.addNode((new PeriodicNode<Callable>(when, interval, callable))->withGroupId(this->id));
+      unsigned long time =  this->scheduler.timeProvider();
+      unsigned long when = time + interval;
+      bool overflow = when < time;
+      this->scheduler.addNode((new PeriodicNode<Callable>(when, interval, callable))->withGroupId(this->id)->withOverflow(overflow));
       return *this;
     }
 
     template<typename Callable>
     Group& every(unsigned long firstInterval, unsigned long interval, Callable callable) {
-      unsigned long when = this->scheduler.timeProvider() + firstInterval;
-      this->scheduler.addNode((new PeriodicNode<Callable>(when, interval, callable))->withGroupId(this->id));
+      unsigned long time =  this->scheduler.timeProvider();
+      unsigned long when = time + firstInterval;
+      bool overflow = when < time;
+      this->scheduler.addNode((new PeriodicNode<Callable>(when, interval, callable))->withGroupId(this->id)->withOverflow(overflow));
       return *this;
     }
 
@@ -224,8 +250,10 @@ public:
     template<typename Callable>
     Group& repeat(unsigned int times, unsigned long interval, Callable callable) {
       if(times == 0) return *this;
-      unsigned long when = this->scheduler.timeProvider() + interval;
-      this->scheduler.addNode((new RepeatableNode<Callable>(when, times, interval, callable))->withGroupId(this->id));
+      unsigned long time =  this->scheduler.timeProvider();
+      unsigned long when = time + interval;
+      bool overflow = when < time;
+      this->scheduler.addNode((new RepeatableNode<Callable>(when, times, interval, callable))->withGroupId(this->id)->withOverflow(overflow));
       return *this;
     }
 
@@ -233,8 +261,10 @@ public:
     template<typename Callable>
     Group& repeat(unsigned int times, unsigned long firstInterval,  unsigned long interval, Callable callable) {
       if(times == 0) return *this;
-      unsigned long when = this->scheduler.timeProvider() + firstInterval;
-      this->scheduler.addNode((new RepeatableNode<Callable>(when, times, interval, callable))->withGroupId(this->id));
+      unsigned long time =  this->scheduler.timeProvider();
+      unsigned long when = time + firstInterval;
+      bool overflow = when < time;
+      this->scheduler.addNode((new RepeatableNode<Callable>(when, times, interval, callable))->withGroupId(this->id)->withOverflow(overflow));
       return *this;
     }
 
@@ -252,8 +282,11 @@ private:
   Node head;
   TimeProvider timeProvider;
   Delay delay;
+  unsigned long lastTick = 0;
   unsigned long nextGroupId = 1;
 
+  void handleNode(Node* node);
+  void handleOverflow();
   void clearGroup(unsigned long groupId);
 
   unsigned long getNextGroupId() {

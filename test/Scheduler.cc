@@ -14,6 +14,10 @@ unsigned long getTimer() {
   return timer;
 }
 
+void noDelay(unsigned long ignore) {
+
+}
+
 void noop() {
 
 }
@@ -95,14 +99,16 @@ TEST(Scheduler, RemoveAllWithLoop) {
 
 TEST(Scheduler, Timeout) {
   timer = 0;
-  bool done;
+  bool done = false;
   bool* doneAddress = &done;
   Scheduler scheduler(getTimer, delay);
   scheduler.timeout(5, [doneAddress](){
     *doneAddress = true;
   });
+  scheduler.debug(Serial);
   timer = 4;
   scheduler.tick();
+  scheduler.debug(Serial);
   ASSERT_FALSE(done);
   timer = 5;
   scheduler.tick();
@@ -289,9 +295,6 @@ TEST(Scheduler_Group, RepeatWithFirstInterval) {
 
 TEST(Scheduler_Group, Clear) {
   timer = 0;
-  int counter = 0;
-  int* counterAddress = &counter;
-  timer = 0;
   Scheduler scheduler(getTimer, delay);
   scheduler.timeout(1, noop);
   Scheduler::Group group = scheduler.group()
@@ -304,9 +307,6 @@ TEST(Scheduler_Group, Clear) {
 
 TEST(Scheduler_Group, MultipleClear) {
   timer = 0;
-  int counter = 0;
-  int* counterAddress = &counter;
-  timer = 0;
   Scheduler scheduler(getTimer, delay);
   scheduler.timeout(1, noop);
   Scheduler::Group group1 = scheduler.group()
@@ -318,6 +318,36 @@ TEST(Scheduler_Group, MultipleClear) {
   ASSERT_EQ(scheduler.count(), 2);
   group2.clear();
   ASSERT_EQ(scheduler.count(), 1);
+}
+
+
+TEST(Scheduler, TimeoutWithOverflow) {
+  timer = 0;
+  int counter = 0;
+  int* counterAddress = &counter;
+  Scheduler scheduler(getTimer, noDelay);
+  scheduler.timeout(10, [counterAddress](){
+    *counterAddress += 1;
+  });
+  timer = -5;
+  scheduler.timeout(10, [counterAddress](){
+    *counterAddress += 1;
+  });
+  timer = 0;
+  scheduler.tick();
+  scheduler.debug(Serial);
+  timer = 10;
+  scheduler.tick();
+  scheduler.debug(Serial);
+  ASSERT_EQ(counter, 1);
+  timer = -5;
+  scheduler.tick();
+  scheduler.debug(Serial);
+  ASSERT_EQ(counter, 1);
+  timer = 5;
+  scheduler.tick();
+  scheduler.debug(Serial);
+  ASSERT_EQ(counter, 2);
 }
 
 int main(int argc, char** argv) {

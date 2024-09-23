@@ -17,25 +17,50 @@ Scheduler::Node::Node(unsigned long when): when(when) {
 } 
 
 bool Scheduler::Node::isAfter(const Scheduler::Node& other) const {
-  return this->when > other.when;
+  if(this->overflow == other.overflow) {
+    return this->when > other.when;
+  }
+  return this->overflow;
 } 
 
 bool Scheduler::Node::isBefore(const Scheduler::Node& other) const {
-  return this->when < other.when;
+  if(this->overflow == other.overflow) {
+    return this->when < other.when;
+  }
+  return other.overflow;
 } 
 
 bool Scheduler::Node::isAfter(unsigned long delta) const {
   return this->when > delta;
 } 
 
+bool Scheduler::Node::isAfter(bool overflow, unsigned long delta) const {
+  if(this->overflow == overflow) {
+    return this->when > delta;
+  }
+  return this->overflow;
+} 
+
 bool Scheduler::Node::isBefore(unsigned long delta) const {
   return this->when < delta;
+} 
+
+bool Scheduler::Node::isBefore(bool overflow, unsigned long delta) const {
+  if(this->overflow == overflow) {
+    return this->when > delta;
+  }
+  return overflow;
 } 
 
 
 unsigned long Scheduler::Node::leftTime(unsigned long delta) const {
   return this->when - delta;
 } 
+
+bool Scheduler::Node::isOverflow() const {
+  return this->overflow;
+} 
+
 
 
 bool Scheduler::Node::hasNext() const {
@@ -52,6 +77,12 @@ Scheduler::Node* Scheduler::Node::withGroupId(unsigned long groupId) {
   return this;
 } 
 
+Scheduler::Node* Scheduler::Node::withOverflow(bool overflow) {
+  this->overflow = overflow;
+  return this;
+} 
+
+
 
 void Scheduler::Node::debug(Stream& stream) const {
   stream.print("Node {");
@@ -59,6 +90,8 @@ void Scheduler::Node::debug(Stream& stream) const {
   stream.print(this->when);
   stream.print(" .groupId=");
   stream.print(this->groupId);
+  stream.print(" .overflow=");
+  stream.print(this->overflow);
   stream.print(" }");
 } 
 
@@ -104,23 +137,45 @@ bool Scheduler::isEmpty() const {
   return !this->head.hasNext();
 }
 
+void Scheduler::handleOverflow() {
+  Node* node = this->head.next;
+  this->head.next = NULL;
+  while(node != NULL) {
+    if(!node->isOverflow()) {
+      this->handleNode(node);
+    }
+    else {
+      this->addNode(node->withOverflow(false));
+    }
+    node=node->next;
+  }
+}
+
+void Scheduler::handleNode(Node* node){
+  bool deleteNode = node->run();
+  if (deleteNode) {
+    delete node;
+  }
+  else {
+    this->addNode(node);
+  }
+}
 
 unsigned long Scheduler::tick() {
   while (this->head.hasNext()) {
-    Node* node = this->head.next;
     unsigned long delta = this->timeProvider();
-    if (node->isAfter(delta)) {
+    bool overflow = this->lastTick > delta;
+    this->lastTick = delta;
+    if(overflow) {
+      this->handleOverflow();
+    }
+    Node* node = this->head.next;
+    if (node->isAfter(overflow, delta)) {
       unsigned long leftTime = node->leftTime(delta);
       return leftTime;
     }
     this->head.setNext(node->next);
-    bool deleteNode = node->run();
-    if (deleteNode) {
-      delete node;
-    }
-    else {
-      this->addNode(node);
-    }
+    this->handleNode(node);
   }
   return 0;
 }
