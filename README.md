@@ -22,13 +22,13 @@ Inspired by: <https://github.com/OpenCIAg/BlueFairy>
 
 Download the library or clone the repository.
 Place the folder inside your Arduino libraries directory (Arduino/libraries).
-Include the library in your sketches with #include <scheduler.h>.
+Include the library in your sketches with `#include <scheduler.h>`.
 
 ## Examples
 
 ### Blink
 
-```ino
+```cpp
 // examples/Blink/Blink.ino
 
 #include <scheduler.h>
