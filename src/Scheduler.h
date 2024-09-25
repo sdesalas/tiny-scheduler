@@ -156,7 +156,9 @@ public:
 
       bool run() {
         this->callable();
+        unsigned long oldWhen = this->when;
         this->when += this->interval;
+        this->overflow = this->when < oldWhen;
         return false;
       }
 
@@ -189,7 +191,9 @@ public:
       bool run() {
         this->times -= 1;
         this->callable();
+        unsigned long oldWhen = this->when;
         this->when += this->interval;
+        this->overflow = this->when < oldWhen;
         return this->times == 0;
       }
 

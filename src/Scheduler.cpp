@@ -168,6 +168,7 @@ unsigned long Scheduler::tick() {
     this->lastTick = delta;
     if(overflow) {
       this->handleOverflow();
+      continue;
     }
     Node* node = this->head.next;
     if (node->isAfter(overflow, delta)) {

@@ -350,6 +350,31 @@ TEST(Scheduler, TimeoutWithOverflow) {
   ASSERT_EQ(counter, 2);
 }
 
+
+TEST(Scheduler, EveryWithOverflow) {
+  timer = -5;
+  int counter = 0;
+  int* counterAddress = &counter;
+  Scheduler scheduler(getTimer, noDelay);
+  scheduler.every(0, 10, [counterAddress](){
+    *counterAddress += 1;
+  });
+  scheduler.debug(Serial);
+  scheduler.tick();
+  ASSERT_EQ(counter, 1);
+  ASSERT_EQ(scheduler.count(), 1);
+  scheduler.debug(Serial);
+  timer = 0;
+  scheduler.tick();
+  ASSERT_EQ(counter, 1);
+  ASSERT_EQ(scheduler.count(), 1);
+  scheduler.debug(Serial);
+  timer = 5;
+  scheduler.tick();
+  ASSERT_EQ(counter, 2);
+  ASSERT_EQ(scheduler.count(), 1);
+}
+
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
