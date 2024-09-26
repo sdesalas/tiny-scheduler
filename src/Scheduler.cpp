@@ -141,13 +141,14 @@ void Scheduler::handleOverflow() {
   Node* node = this->head.next;
   this->head.next = NULL;
   while(node != NULL) {
+    Node* next = node->next;
     if(!node->isOverflow()) {
       this->handleNode(node);
     }
     else {
       this->addNode(node->withOverflow(false));
     }
-    node=node->next;
+    node=next;
   }
 }
 
@@ -205,10 +206,12 @@ void Scheduler::loop() {
 }
 
 void Scheduler::clear() {
-  while (this->head.hasNext()) {
-    Node* node = this->head.next;
-    this->head.setNext(node->next);
+  Node* node = this->head.next;
+  this->head.next = NULL;
+  while (node != NULL) {
+    Node* next = node->next;
     delete node;
+    node = next;
   }
 }
 
