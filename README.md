@@ -1,5 +1,7 @@
 # Tiny Scheduler
 
+[![Arduino](https://img.shields.io/badge/-Arduino-00979D?style=for-the-badge&logo=Arduino&logoColor=white)](https://www.arduino.cc/reference/en/libraries/tinyscheduler/)
+
 A lightweight and flexible task scheduling library for Arduino, allowing users to manage time-based events such as timeouts, periodic tasks, and repeated executions with an intuitive API.
 
 This Arduino scheduling library offers a simple yet powerful way to manage timed tasks. Whether you need to run a task after a delay, repeat an action periodically, or execute a function multiple times with custom intervals, this library provides an easy-to-use interface. Built with flexibility in mind, the library supports passing functions, lambdas, or callable objects, giving you full control over scheduling behaviors.
