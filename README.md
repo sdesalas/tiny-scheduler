@@ -124,6 +124,8 @@ It’s not meant to replace FreeRTOS but can be used alongside it when you need 
 
 **Low overhead**: Optimized for minimal memory usage, perfect for resource-constrained Arduino boards
 
+**Task Groups**: Organize related tasks into groups, allowing you to manage them collectively, such as canceling all tasks within a group at once, improving modularity and control over task management.
+
 ## Alternative Installation
 
 Download the library or clone the repository.
