@@ -106,6 +106,12 @@ void loop() {
 Using TinyScheduler, you can schedule the LED to blink without blocking other tasks and add more time-based actions, like reading sensors or controlling other devices, without adding complexity to your program.
 It helps avoid delays and makes your microcontroller code more responsive and efficient, especially when handling multiple tasks simultaneously.
 
+## TinyScheduler vs FreeRTOS
+
+TinyScheduler offers a simpler, more flexible approach to task scheduling by supporting modern C++ features like lambdas and templates, which enhance code reuse and readability.
+Unlike FreeRTOS, which is a full-fledged real-time operating system with advanced features like task prioritization, mutexes, and semaphores, TinyScheduler focuses on lightweight task management without the overhead of a full RTOS.
+It’s not meant to replace FreeRTOS but can be used alongside it when you need a minimal scheduler for certain tasks, giving you flexibility depending on the complexity of your project.
+
 ## Key features include
 
 **Timeouts**: Schedule tasks to run after a specified delay.
