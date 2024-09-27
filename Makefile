@@ -28,12 +28,12 @@ TESTS := $(foreach x, $(basename $(RUNS)), $(x).test)
 INOSRC := $(shell find -type f -iname '*.$(ARDUINOSUFFIX)' )
 INOOBJ := $(foreach x, $(basename $(INOSRC)), $(x).ao)
 
+
+all: $(OBJECTS) $(RUNS) README.md
+
 test: $(TESTS)
 
-all: $(OBJECTS) $(RUNS)
-
 ino: $(INOOBJ)
-
 
 %.md: $(INOSRC)
 	node ./node_modules/embedme/dist/embedme.js $@
