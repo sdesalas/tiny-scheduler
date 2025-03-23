@@ -1,12 +1,17 @@
+
+/**
+ * TinyScheduler.h
+ *
+ * A lightweight, flexible and highly portable task scheduling library for Arduino.
+ * 
+ * By @ettoreleandrotognoli with implementation fixes by @sdesalas
+ *  
+ */
+
 #ifndef __TINY_SCHEDULER__
 #define __TINY_SCHEDULER__
 
 #include "Arduino.h"
-/**
- * https://www.arduino.cc/reference/en/language/functions/time/millis/
- * https://www.arduino.cc/reference/en/language/functions/time/micros/
- */
-
 
 class Callable {
 public:
@@ -297,7 +302,7 @@ private:
 
 };
 
-/************** IMPLEMENTATION ************/
+/*********** IMPLEMENTATION DETAIL  - Originally in TinyScheduler.cc ************/
 
 void usDelay(unsigned long us) {
   delayMicroseconds(us);

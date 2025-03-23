@@ -1,4 +1,5 @@
-#include "scheduler.h"
+#include "TinyScheduler.h"
+
 #include "Arduino.h"
 #include <cmath>
 #include <gtest/gtest.h>

@@ -1,9 +1,7 @@
 #include <scheduler.h>
 
-using scheduler::Scheduler;
 
-
-Scheduler msScheduler = Scheduler::millis();
+TinyScheduler msScheduler = TinyScheduler::millis();
 
 const int LED_PIN = LED_BUILTIN;
 int LED_VALUE = 0;
