@@ -294,7 +294,7 @@ private:
   void clearGroup(unsigned long groupId);
 
   unsigned long getNextGroupId() {
-    this->nextGroupId = max<unsigned long>(1, this->nextGroupId);
+    this->nextGroupId = max(1, this->nextGroupId);
     return this->nextGroupId++;
   }
 
