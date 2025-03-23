@@ -77,10 +77,10 @@ Instead, you define tasks in a more structured way, and TinyScheduler handles th
 ```cpp
 // examples/Blink/Blink.ino
 
-#include <Scheduler.h>
+#include <TinyScheduler.h>
 
 
-Scheduler msScheduler = Scheduler::millis();
+TinyScheduler msScheduler = TinyScheduler::millis();
 
 const int LED_PIN = LED_BUILTIN;
 int LED_VALUE = 0;
@@ -135,10 +135,10 @@ Include the library in your sketches with `#include <Scheduler.h>`.
 ```cpp
 // examples/Blink2/Blink2.ino
 
-#include <Scheduler.h>
+#include <TinyScheduler.h>
 
 
-Scheduler msScheduler = Scheduler::millis();
+TinyScheduler msScheduler = TinyScheduler::millis();
 
 const int LED_PIN = LED_BUILTIN;
 int LED_VALUE = 0;
