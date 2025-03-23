@@ -1,13 +1,11 @@
-#ifndef __SCHEDULER__SCHEDULER__
-#define __SCHEDULER__SCHEDULER__
+#ifndef __TINY_SCHEDULER__
+#define __TINY_SCHEDULER__
 
 #include "Arduino.h"
 /**
  * https://www.arduino.cc/reference/en/language/functions/time/millis/
  * https://www.arduino.cc/reference/en/language/functions/time/micros/
  */
-
-namespace scheduler {
 
 
 class Callable {
@@ -21,20 +19,19 @@ typedef void (*Delay)(unsigned long);
 
 void usDelay(unsigned long us);
 
-
-class Scheduler {
+class TinyScheduler {
 public:
 
   class Group;
 
-  Scheduler(TimeProvider timeProvider, Delay delay);
-  static Scheduler millis() {
-    return Scheduler(::millis, ::delay);
+  TinyScheduler(TimeProvider timeProvider, Delay delay);
+  static TinyScheduler millis() {
+    return TinyScheduler(::millis, ::delay);
   }
-  static Scheduler micros() {
-    return Scheduler(::micros, usDelay);
+  static TinyScheduler micros() {
+    return TinyScheduler(::micros, usDelay);
   }
-  virtual ~Scheduler();
+  virtual ~TinyScheduler();
   unsigned long tick();
   void loop();
   bool isEmpty() const;
@@ -45,7 +42,7 @@ public:
   Group group();
 
   template<typename Callable>
-  Scheduler& timeout(unsigned long delta, Callable callable) {
+  TinyScheduler& timeout(unsigned long delta, Callable callable) {
     unsigned long time =  this->timeProvider();
     unsigned long when = time + delta;
     bool overflow = when < time;
@@ -55,7 +52,7 @@ public:
 
 
   template<typename Callable>
-  Scheduler& every(unsigned long interval, Callable callable) {
+  TinyScheduler& every(unsigned long interval, Callable callable) {
     unsigned long time =  this->timeProvider();
     unsigned long when = time + interval;
     bool overflow = when < time;
@@ -64,7 +61,7 @@ public:
   }
 
   template<typename Callable>
-  Scheduler& every(unsigned long firstInterval, unsigned long interval, Callable callable) {
+  TinyScheduler& every(unsigned long firstInterval, unsigned long interval, Callable callable) {
     unsigned long time =  this->timeProvider();
     unsigned long when = time + firstInterval;
     bool overflow = when < time;
@@ -74,7 +71,7 @@ public:
 
 
   template<typename Callable>
-  Scheduler& repeat(unsigned int times, unsigned long interval, Callable callable) {
+  TinyScheduler& repeat(unsigned int times, unsigned long interval, Callable callable) {
     if(times == 0) return *this;
     unsigned long time =  this->timeProvider();
     unsigned long when = time + interval;
@@ -85,7 +82,7 @@ public:
 
 
   template<typename Callable>
-  Scheduler& repeat(unsigned int times, unsigned long firstInterval,  unsigned long interval, Callable callable) {
+  TinyScheduler& repeat(unsigned int times, unsigned long firstInterval,  unsigned long interval, Callable callable) {
     if(times == 0) return *this;
     unsigned long time =  this->timeProvider();
     unsigned long when = time + firstInterval;
@@ -123,7 +120,7 @@ public:
       virtual void debug(Stream& stream) const;
     private:
 
-      friend Scheduler;
+      friend TinyScheduler;
       Node* next;
       bool overflow = false;
       unsigned long when;
@@ -273,10 +270,10 @@ public:
     }
 
   private:
-    friend Scheduler;
-    Group(Scheduler& scheduler, unsigned long id);
+    friend TinyScheduler;
+    Group(TinyScheduler& scheduler, unsigned long id);
     unsigned long id;
-    Scheduler& scheduler;
+    TinyScheduler& scheduler;
   };
 
   Node* addNode(Node* newNode);
@@ -300,6 +297,246 @@ private:
 
 };
 
-};
+/************** IMPLEMENTATION ************/
+
+void usDelay(unsigned long us) {
+  delayMicroseconds(us);
+}
+
+TinyScheduler::TinyScheduler(TimeProvider timeProvider, Delay delay) : timeProvider(timeProvider), delay(delay) {
+
+}
+
+TinyScheduler::~TinyScheduler() {
+  TinyScheduler::Node* node = this->head.next;
+  while(node != NULL) {
+    auto next = node->next;
+    delete node;
+    node = next;
+  }
+}
+
+void TinyScheduler::debug(Stream& stream) const {
+  stream.println("TinyScheduler::debug");
+  stream.println("TinyScheduler Tasks:");
+  TinyScheduler::Node* node = this->head.next;
+  while (node != NULL) {
+    stream.print("\t");
+    node->debug(stream);
+    stream.println();
+    node = node->next;
+  }
+  stream.println("-----");
+}
+
+bool TinyScheduler::isEmpty() const {
+  return !this->head.hasNext();
+}
+
+void TinyScheduler::handleOverflow() {
+  Node* node = this->head.next;
+  this->head.next = NULL;
+  while(node != NULL) {
+    Node* next = node->next;
+    if(!node->isOverflow()) {
+      this->handleNode(node);
+    }
+    else {
+      this->addNode(node->withOverflow(false));
+    }
+    node=next;
+  }
+}
+
+void TinyScheduler::handleNode(Node* node){
+  bool deleteNode = node->run();
+  if (deleteNode) {
+    delete node;
+  }
+  else {
+    this->addNode(node);
+  }
+}
+
+unsigned long TinyScheduler::tick() {
+  while (this->head.hasNext()) {
+    unsigned long delta = this->timeProvider();
+    bool overflow = this->lastTick > delta;
+    this->lastTick = delta;
+    if(overflow) {
+      this->handleOverflow();
+      continue;
+    }
+    Node* node = this->head.next;
+    if (node->isAfter(overflow, delta)) {
+      unsigned long leftTime = node->leftTime(delta);
+      return leftTime;
+    }
+    this->head.setNext(node->next);
+    this->handleNode(node);
+  }
+  return 0;
+}
+
+unsigned int TinyScheduler::count() const {
+  if(this->isEmpty()) {
+    return 0;
+  }
+  unsigned int counter = 0;
+  TinyScheduler::Node* node = this->head.next;
+  while(node != NULL) {
+    counter += 1;
+    node = node->next;
+  }
+  return counter;
+}
+
+
+void TinyScheduler::loop() {
+  while(!this->isEmpty()) {
+    const unsigned long wait = this->tick();
+    if(wait != 0) {
+      this->delay(wait);
+    }
+  }
+}
+
+void TinyScheduler::clear() {
+  Node* node = this->head.next;
+  this->head.next = NULL;
+  while (node != NULL) {
+    Node* next = node->next;
+    delete node;
+    node = next;
+  }
+}
+
+// ---- NODE -----
+
+TinyScheduler::Node::Node(): when(0) {
+  this->next = NULL;
+} 
+
+TinyScheduler::Node::Node(unsigned long when): when(when) {
+  this->next = NULL;
+} 
+
+bool TinyScheduler::Node::isAfter(const TinyScheduler::Node& other) const {
+  if(this->overflow == other.overflow) {
+    return this->when > other.when;
+  }
+  return this->overflow;
+} 
+
+bool TinyScheduler::Node::isBefore(const TinyScheduler::Node& other) const {
+  if(this->overflow == other.overflow) {
+    return this->when < other.when;
+  }
+  return other.overflow;
+} 
+
+bool TinyScheduler::Node::isAfter(unsigned long delta) const {
+  return this->when > delta;
+} 
+
+bool TinyScheduler::Node::isAfter(bool overflow, unsigned long delta) const {
+  if(this->overflow == overflow) {
+    return this->when > delta;
+  }
+  return this->overflow;
+} 
+
+bool TinyScheduler::Node::isBefore(unsigned long delta) const {
+  return this->when < delta;
+} 
+
+bool TinyScheduler::Node::isBefore(bool overflow, unsigned long delta) const {
+  if(this->overflow == overflow) {
+    return this->when > delta;
+  }
+  return overflow;
+} 
+
+
+unsigned long TinyScheduler::Node::leftTime(unsigned long delta) const {
+  return this->when - delta;
+} 
+
+bool TinyScheduler::Node::isOverflow() const {
+  return this->overflow;
+} 
+
+
+
+bool TinyScheduler::Node::hasNext() const {
+  return this->next != NULL;
+}
+
+void TinyScheduler::Node::setNext(TinyScheduler::Node* next) {
+  this->next = next;
+} 
+
+
+TinyScheduler::Node* TinyScheduler::Node::withGroupId(unsigned long groupId) {
+  this->groupId = groupId;
+  return this;
+} 
+
+TinyScheduler::Node* TinyScheduler::Node::withOverflow(bool overflow) {
+  this->overflow = overflow;
+  return this;
+} 
+
+void TinyScheduler::Node::debug(Stream& stream) const {
+  stream.print("Node {");
+  stream.print(" .when=");
+  stream.print(this->when);
+  stream.print(" .groupId=");
+  stream.print(this->groupId);
+  stream.print(" .overflow=");
+  stream.print(this->overflow);
+  stream.print(" }");
+} 
+
+TinyScheduler::Node* TinyScheduler::addNode(TinyScheduler::Node* newNode) {
+  TinyScheduler::Node* node = &this->head;
+  while(node->hasNext() && node->next->isBefore(*newNode)) {
+    node = node->next;
+  }
+  newNode->setNext(node->next);
+  node->setNext(newNode);
+  return newNode;
+}
+
+// ---- GROUP -----
+
+void TinyScheduler::clearGroup(unsigned long groupId) {
+  Node* prev = &this->head;
+  Node* node = this->head.next;
+  while(node != NULL) {
+    bool removeIt = node->groupId == groupId;
+    if(removeIt) {
+      prev->next = node->next;
+      delete node;
+    }
+    else{
+      prev = node;
+    }
+    node = prev->next;
+  }
+}
+
+TinyScheduler::Group TinyScheduler::group() {
+  return Group(*this, this->getNextGroupId());
+}
+
+
+TinyScheduler::Group::Group(TinyScheduler& scheduler, unsigned long id): scheduler(scheduler), id(id) {
+
+}
+
+void TinyScheduler::Group::clear() {
+  this->scheduler.clearGroup(this->id);
+}
 
 #endif

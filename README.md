@@ -77,9 +77,7 @@ Instead, you define tasks in a more structured way, and TinyScheduler handles th
 ```cpp
 // examples/Blink/Blink.ino
 
-#include <scheduler.h>
-
-using scheduler::Scheduler;
+#include <Scheduler.h>
 
 
 Scheduler msScheduler = Scheduler::millis();
@@ -130,16 +128,14 @@ It’s not meant to replace FreeRTOS but can be used alongside it when you need 
 
 Download the library or clone the repository.
 Place the folder inside your Arduino libraries directory (Arduino/libraries).
-Include the library in your sketches with `#include <scheduler.h>`.
+Include the library in your sketches with `#include <Scheduler.h>`.
 
 ## Examples
 
 ```cpp
 // examples/Blink2/Blink2.ino
 
-#include <scheduler.h>
-
-using scheduler::Scheduler;
+#include <Scheduler.h>
 
 
 Scheduler msScheduler = Scheduler::millis();
